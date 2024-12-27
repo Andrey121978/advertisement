@@ -1,16 +1,13 @@
-from flask import Flask, jsonify, request
+from aiohttp import web
 from datetime import date
-app = Flask(__name__)
-
 
 ads = []
 next_id = 1
 
 
-@app.route('/ads', methods=['POST'])
-def create_ad():
+async def create_ad(request):
     global next_id
-    data = request.json
+    data = await request.json()
 
     ad = {
         'id': next_id,
@@ -21,39 +18,33 @@ def create_ad():
     }
     ads.append(ad)
     next_id += 1
-    return jsonify(ad), 201
+    return web.json_response(ad, status=201)
 
 
-@app.route('/ads/<int:ad_id>', methods=['GET'])
-def get_ad(ad_id):
-    marker_find = 0
+async def get_ad(request):
+    ad_id = int(request.match_info['ad_id'])
     for ad in ads:
         if ad['id'] == ad_id:
-            marker_find = 1
+            return web.json_response(ad)
 
-            return jsonify(ad)
-
-    if marker_find == 0:
-        return jsonify({'message': 'Объявление не найдено'}), 404
+    return web.json_response({'message': 'Объявление не найдено'}, status=404)
 
 
-
-
-@app.route('/ads/<int:ad_id>', methods=['DELETE'])
-def delete_ad(ad_id):
+async def delete_ad(request):
     global ads
-    marker_find = 0
+    ad_id = int(request.match_info['ad_id'])
     for ad in ads:
         if ad['id'] == ad_id:
-            marker_find = 1
             ads.remove(ad)
-    if marker_find == 1:
-        return jsonify({'message': 'Объявление удалено'}), 200
-    else:
-        return jsonify({'message': 'Объявление не найдено'}), 404
+            return web.json_response({'message': 'Объявление удалено'}, status=200)
+
+    return web.json_response({'message': 'Объявление не найдено'}, status=404)
 
 
-
+app = web.Application()
+app.router.add_post('/ads', create_ad)
+app.router.add_get('/ads/{ad_id}', get_ad)
+app.router.add_delete('/ads/{ad_id}', delete_ad)
 
 if __name__ == '__main__':
-    app.run()
+    web.run_app(app, host='127.0.0.1', port=8080)
